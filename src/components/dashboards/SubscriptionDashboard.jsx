@@ -280,7 +280,8 @@ export const SubscriptionDashboard = () => {
           // Only include sales with a valid date and status is completed (if status exists)
           if (
             saleDate &&
-            (!saleData.status || saleData.status === "completed" && saleData.cancelled!=true)
+            (!saleData.status ||
+              (saleData.status === "completed" && saleData.cancelled != true))
           ) {
             // Only include sales with non-empty policy numbers
             if (saleData.policyNumber && saleData.policyNumber.trim() !== "") {
@@ -386,103 +387,105 @@ export const SubscriptionDashboard = () => {
     clinicsData,
   ]);
 
-// Update the filterSalesByDate function
-const filterSalesByDate = (
-  sales,
-  filter,
-  day = selectedDay,
-  month = selectedMonth,
-  year = selectedYear
-) => {
-  // Guard against undefined sales
-  if (!sales) {
-    console.warn("Sales data is undefined in filterSalesByDate");
-    return;
-  }
+  // Update the filterSalesByDate function
+  const filterSalesByDate = (
+    sales,
+    filter,
+    day = selectedDay,
+    month = selectedMonth,
+    year = selectedYear
+  ) => {
+    // Guard against undefined sales
+    if (!sales) {
+      console.warn("Sales data is undefined in filterSalesByDate");
+      return;
+    }
 
-  let filtered;
-  // Date filtering logic updated to use saleDate property
-  switch (filter) {
-    case "daily":
-      // Fix for timezone issues - use date components instead of ISO string
-      const selectedDate = new Date(
-        day.getFullYear(),
-        day.getMonth(),
-        day.getDate()
-      );
-      const nextDay = new Date(selectedDate);
-      nextDay.setDate(selectedDate.getDate() + 1);
+    let filtered;
+    // Date filtering logic updated to use saleDate property
+    switch (filter) {
+      case "daily":
+        // Fix for timezone issues - use date components instead of ISO string
+        const selectedDate = new Date(
+          day.getFullYear(),
+          day.getMonth(),
+          day.getDate()
+        );
+        const nextDay = new Date(selectedDate);
+        nextDay.setDate(selectedDate.getDate() + 1);
 
-      filtered = sales.filter((sale) => {
-        return sale.saleDate >= selectedDate && sale.saleDate < nextDay;
+        filtered = sales.filter((sale) => {
+          return sale.saleDate >= selectedDate && sale.saleDate < nextDay;
+        });
+        break;
+
+      case "mtd":
+        // Create a date for the start of the selected month
+        const startOfMonth = new Date(year, month, 1);
+        // Create a date for the start of the next month
+        const endOfMonth = new Date(year, month + 1, 0);
+
+        filtered = sales.filter((sale) => {
+          return sale.saleDate >= startOfMonth && sale.saleDate <= endOfMonth;
+        });
+        break;
+
+      case "ytd":
+        // Financial year (April to March) for the selected year
+        const financialYearStart = new Date(year, 3, 1); // April 1st
+
+        filtered = sales.filter((sale) => {
+          return sale.saleDate >= financialYearStart;
+        });
+        break;
+
+      case "itd":
+      default:
+        filtered = [...sales]; // All data
+        break;
+    }
+
+    // Additional filter to ensure we only show transactions with policy numbers
+    filtered = filtered.filter(
+      (sale) => sale.policyNumber && sale.policyNumber.trim() !== ""
+    );
+
+    // Guard against undefined clinicsData
+    const clinicsDataAvailable =
+      clinicsData && Object.keys(clinicsData).length > 0;
+
+    // Apply clinic code filter if not set to "all"
+    if (clinicFilter !== "all") {
+      filtered = filtered.filter((sale) => sale.clinicCode === clinicFilter);
+    }
+
+    // Apply state filter if not set to "all" and clinicsData is available
+    if (stateFilter !== "all" && clinicsDataAvailable) {
+      filtered = filtered.filter((sale) => {
+        const clinicInfo = clinicsData[sale.clinicCode];
+        if (!clinicInfo || !clinicInfo.state) return false;
+
+        // Use normalized state for comparison
+        return (
+          normalizeStateName(clinicInfo.state) ===
+          normalizeStateName(stateFilter)
+        );
       });
-      break;
+    }
 
-case "mtd":
-  // Create a date for the start of the selected month
-  const startOfMonth = new Date(year, month, 1);
-  // Create a date for the start of the next month
-  const endOfMonth = new Date(year, month + 1, 0);
-  
-  filtered = sales.filter((sale) => {
-    return sale.saleDate >= startOfMonth && sale.saleDate <= endOfMonth;
-  });
-  break;
-
-    case "ytd":
-      // Financial year (April to March) for the selected year
-      const financialYearStart = new Date(year, 3, 1); // April 1st
-      
-      filtered = sales.filter((sale) => {
-        return sale.saleDate >= financialYearStart;
-      });
-      break;
-
-    case "itd":
-    default:
-      filtered = [...sales]; // All data
-      break;
-  }
-
-  // Additional filter to ensure we only show transactions with policy numbers
-  filtered = filtered.filter(
-    (sale) => sale.policyNumber && sale.policyNumber.trim() !== ""
-  );
-
-  // Guard against undefined clinicsData
-  const clinicsDataAvailable =
-    clinicsData && Object.keys(clinicsData).length > 0;
-
-  // Apply clinic code filter if not set to "all"
-  if (clinicFilter !== "all") {
-    filtered = filtered.filter((sale) => sale.clinicCode === clinicFilter);
-  }
-
-  // Apply state filter if not set to "all" and clinicsData is available
-  if (stateFilter !== "all" && clinicsDataAvailable) {
-    filtered = filtered.filter((sale) => {
-      const clinicInfo = clinicsData[sale.clinicCode];
-      if (!clinicInfo || !clinicInfo.state) return false;
-
-      // Use normalized state for comparison
-      return (
-        normalizeStateName(clinicInfo.state) ===
-        normalizeStateName(stateFilter)
-      );
-    });
-  }
-
-  setFilteredSales(filtered);
-  processData(filtered);
-  // Also update recentTransactions for the table display
-  setRecentTransactions(filtered);
-  // Reset to first page when changing filters
-  setCurrentPage(1);
-};
+    setFilteredSales(filtered);
+    processData(filtered);
+    // Also update recentTransactions for the table display
+    setRecentTransactions(filtered);
+    // Reset to first page when changing filters
+    setCurrentPage(1);
+  };
 
   const processData = (sales) => {
     // Calculate stats
-    const totalSales = sales.length;
+    const uniquePolicyNumbers = new Set(sales.map((sale) => sale.policyNumber))
+      .size;
+
     const totalRevenue = sales.reduce(
       (sum, sale) => sum + (sale.price || 0),
       0
@@ -500,7 +503,7 @@ case "mtd":
     ).length;
 
     setStats({
-      totalSales,
+      totalSales: uniquePolicyNumbers, // Change this line
       totalRevenue,
       uniqueProducts,
       cashPayments,
