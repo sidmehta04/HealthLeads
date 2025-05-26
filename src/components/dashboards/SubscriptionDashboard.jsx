@@ -30,15 +30,14 @@ try {
   // Initialize mswasth Firebase app with a unique name
   mswasthApp = initializeApp(
     {
-      apiKey: "AIzaSyDPQCaNnxmRuEeZTUvPi_2bK1K1t2z3iXc",
-      authDomain: "mswasth-inventory-7aa83.firebaseapp.com",
+      apiKey: "AIzaSyBtWbPNRi4ia5a3pJ7aTFqqj9Z4aMN01Os",
+      authDomain: "healthcamp-f0c93.firebaseapp.com",
       databaseURL:
-        "https://mswasth-inventory-7aa83-default-rtdb.firebaseio.com",
-      projectId: "mswasth-inventory-7aa83",
-      storageBucket: "mswasth-inventory-7aa83.firebasestorage.app",
-      messagingSenderId: "172554273866",
-      appId: "1:172554273866:web:4d7cd37f729f22ecc1d2b3",
-      measurementId: "G-NH399QWVLF",
+        "https://healthcamp-f0c93-default-rtdb.firebaseio.com",
+      projectId: "healthcamp-f0c93",
+      storageBucket: "healthcamp-f0c93.firebasestorage.app",
+      messagingSenderId: "210176603069",
+      appId: "1:210176603069:web:ec38016d08a8051b1bd8d4",
     },
     "mswasth"
   );
