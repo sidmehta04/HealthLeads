@@ -32,8 +32,7 @@ try {
     {
       apiKey: "AIzaSyBtWbPNRi4ia5a3pJ7aTFqqj9Z4aMN01Os",
       authDomain: "healthcamp-f0c93.firebaseapp.com",
-      databaseURL:
-        "https://healthcamp-f0c93-default-rtdb.firebaseio.com",
+      databaseURL: "https://healthcamp-f0c93-default-rtdb.firebaseio.com",
       projectId: "healthcamp-f0c93",
       storageBucket: "healthcamp-f0c93.firebasestorage.app",
       messagingSenderId: "210176603069",
@@ -146,19 +145,31 @@ export const SubscriptionDashboard = () => {
     return stateMapping[stateLower] || stateLower;
   };
 
-  // Function to download transactions data as Excel
+  // Updated downloadExcel function to ensure only unique policy numbers
   const downloadExcel = () => {
     try {
       // Use filteredSales for export to include all data matching the current filter
       const dataToExport = filteredSales.length > 0 ? filteredSales : salesData;
 
-      // Create worksheet from the data
+      // Create a Map to ensure unique policy numbers in export
+      const uniquePolicyMap = new Map();
+
+      dataToExport.forEach((sale) => {
+        if (sale.policyNumber && !uniquePolicyMap.has(sale.policyNumber)) {
+          uniquePolicyMap.set(sale.policyNumber, sale);
+        }
+      });
+
+      // Convert map back to array for export
+      const uniqueDataToExport = Array.from(uniquePolicyMap.values());
+
+      // Create worksheet from the unique data
       const worksheet = XLSX.utils.json_to_sheet(
-        dataToExport.map((sale) => {
+        uniqueDataToExport.map((sale) => {
           const clinicInfo = clinicsData[sale.clinicCode] || {};
 
           return {
-            Date: formatDate(sale.timestamp),
+            Date: formatDate(sale.saleDate || sale.timestamp),
             "Policy Number": sale.policyNumber || "",
             "Transaction ID": sale.transactionId || "",
             Product: sale.productName || "",
@@ -170,16 +181,17 @@ export const SubscriptionDashboard = () => {
             Utilised: utilizedPolicyNumbers.has(sale.policyNumber)
               ? "Yes"
               : "No",
+            Cancelled: sale.cancelled === true ? "Yes" : "No", // Add cancelled status for reference
           };
         })
       );
 
       // Create workbook and add the worksheet
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Unique_Policies");
 
       // Generate filename based on the current filter
-      let filename = "Sales_";
+      let filename = "Unique_Policies_";
       switch (dateFilter) {
         case "daily":
           filename += `${selectedDay.toISOString().split("T")[0]}`;
@@ -207,17 +219,31 @@ export const SubscriptionDashboard = () => {
         default:
           filename += "All_Time";
       }
+
+      // Add filter information to filename if filters are applied
+      if (clinicFilter !== "all") {
+        filename += `_${clinicFilter}`;
+      }
+      if (stateFilter !== "all") {
+        filename += `_${stateFilter.replace(/\s+/g, "_")}`;
+      }
+
       filename += ".xlsx";
 
       // Save the file
       XLSX.writeFile(workbook, filename);
+
+      // Show success message with unique count
+      console.log(
+        `Excel file downloaded: ${filename} with ${uniqueDataToExport.length} unique policy records (from ${dataToExport.length} total filtered records)`
+      );
     } catch (error) {
       console.error("Error exporting to Excel:", error);
       alert("There was an error exporting to Excel. Please try again.");
     }
   };
-
   // Use this in your fetchData useEffect, after setting clinicsData
+  // Updated data fetching logic to exclude cancelled transactions and get unique policy numbers
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -267,6 +293,8 @@ export const SubscriptionDashboard = () => {
         const querySnapshot = await getDocs(salesQuery);
 
         const sales = [];
+        const policyNumbersMap = new Map(); // To track unique policy numbers
+
         querySnapshot.forEach((doc) => {
           const saleData = doc.data();
 
@@ -277,22 +305,33 @@ export const SubscriptionDashboard = () => {
             : new Date(saleTimestamp);
 
           // Only include sales with a valid date and status is completed (if status exists)
+          // EXCLUDE cancelled transactions (cancelled == true)
           if (
             saleDate &&
             (!saleData.status ||
-              (saleData.status === "completed" && saleData.cancelled != true))
+              (saleData.status === "completed" &&
+                saleData.cancelled !== true)) &&
+            saleData.cancelled !== true // Double check to exclude cancelled
           ) {
             // Only include sales with non-empty policy numbers
             if (saleData.policyNumber && saleData.policyNumber.trim() !== "") {
-              const clinicInfo = clinicsMap[saleData.clinicCode] || {};
-              sales.push({
-                id: doc.id,
-                ...saleData,
-                saleDate: saleDate, // Add the saleDate property
-                clinicDistrict: clinicInfo.districtName || "Unknown",
-                clinicState: clinicInfo.state || "Unknown",
-                normalizedState: clinicInfo.normalizedState || "",
-              });
+              // Check if this policy number already exists
+              if (!policyNumbersMap.has(saleData.policyNumber)) {
+                const clinicInfo = clinicsMap[saleData.clinicCode] || {};
+
+                const saleRecord = {
+                  id: doc.id,
+                  ...saleData,
+                  saleDate: saleDate, // Add the saleDate property
+                  clinicDistrict: clinicInfo.districtName || "Unknown",
+                  clinicState: clinicInfo.state || "Unknown",
+                  normalizedState: clinicInfo.normalizedState || "",
+                };
+
+                // Add to map to track unique policy numbers
+                policyNumbersMap.set(saleData.policyNumber, saleRecord);
+                sales.push(saleRecord);
+              }
             }
           }
         });
@@ -311,7 +350,7 @@ export const SubscriptionDashboard = () => {
     };
 
     fetchData();
-  }, []); // Add this useEffect to filter clinic codes based on search term
+  }, []);
   useEffect(() => {
     // Guard against undefined uniqueClinicCodes
     if (!uniqueClinicCodes) return;
@@ -387,6 +426,7 @@ export const SubscriptionDashboard = () => {
   ]);
 
   // Update the filterSalesByDate function
+  // Update the filterSalesByDate function with corrected MTD logic
   const filterSalesByDate = (
     sales,
     filter,
@@ -421,11 +461,27 @@ export const SubscriptionDashboard = () => {
       case "mtd":
         // Create a date for the start of the selected month
         const startOfMonth = new Date(year, month, 1);
-        // Create a date for the start of the next month
-        const endOfMonth = new Date(year, month + 1, 0);
+
+        // For MTD, we want from start of month to current date (not end of month)
+        // If the selected month/year is the current month/year, use current date
+        // Otherwise, use the last day of the selected month
+        let endDate;
+        const currentDate = new Date();
+        const isCurrentMonth =
+          year === currentDate.getFullYear() &&
+          month === currentDate.getMonth();
+
+        if (isCurrentMonth) {
+          // For current month, use current date + 1 day to include today's data
+          endDate = new Date(currentDate);
+          endDate.setDate(currentDate.getDate() + 1);
+        } else {
+          // For past months, use the entire month
+          endDate = new Date(year, month + 1, 1); // Start of next month
+        }
 
         filtered = sales.filter((sale) => {
-          return sale.saleDate >= startOfMonth && sale.saleDate <= endOfMonth;
+          return sale.saleDate >= startOfMonth && sale.saleDate < endDate;
         });
         break;
 
@@ -433,8 +489,16 @@ export const SubscriptionDashboard = () => {
         // Financial year (April to March) for the selected year
         const financialYearStart = new Date(year, 3, 1); // April 1st
 
+        // For YTD, filter from start of financial year to current date
+        const currentDateForYTD = new Date();
+        const endOfCurrentDay = new Date(currentDateForYTD);
+        endOfCurrentDay.setDate(currentDateForYTD.getDate() + 1);
+
         filtered = sales.filter((sale) => {
-          return sale.saleDate >= financialYearStart;
+          return (
+            sale.saleDate >= financialYearStart &&
+            sale.saleDate < endOfCurrentDay
+          );
         });
         break;
 
