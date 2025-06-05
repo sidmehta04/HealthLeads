@@ -24,6 +24,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import { getDatabase, ref, get } from "firebase/database";
+import CampsDashboard from "./CampsDashboard";
 let mswasthApp;
 let mswasthDb;
 try {
@@ -87,6 +88,7 @@ export const SubscriptionDashboard = () => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSales, setFilteredSales] = useState([]);
   const [clinicsData, setClinicsData] = useState({});
+  const [subTab, setSubTab] = useState("sales");
 
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -650,610 +652,541 @@ export const SubscriptionDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Subscription Sales Dashboard
-        </h2>
-        <div className="flex flex-wrap space-x-2">
-          <button
-            onClick={() => setDateFilter("daily")}
-            className={`px-3 py-1 text-sm font-medium rounded-md ${
-              dateFilter === "daily"
-                ? "bg-gray-900 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            Daily
-          </button>
-          <button
-            onClick={() => setDateFilter("mtd")}
-            className={`px-3 py-1 text-sm font-medium rounded-md ${
-              dateFilter === "mtd"
-                ? "bg-gray-900 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            MTD
-          </button>
-          <button
-            onClick={() => setDateFilter("ytd")}
-            className={`px-3 py-1 text-sm font-medium rounded-md ${
-              dateFilter === "ytd"
-                ? "bg-gray-900 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            YTD
-          </button>
-          <button
-            onClick={() => setDateFilter("itd")}
-            className={`px-3 py-1 text-sm font-medium rounded-md ${
-              dateFilter === "itd"
-                ? "bg-gray-900 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            ITD
-          </button>
-        </div>
+      {/* Sub-tab navigation */}
+      <div className="flex space-x-4 border-b border-gray-200">
+        <button
+          onClick={() => setSubTab("sales")}
+          className={`px-4 py-2 text-sm font-medium ${
+            subTab === "sales"
+              ? "border-b-2 border-indigo-500 text-indigo-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Sales
+        </button>
+        <button
+          onClick={() => setSubTab("camps")}
+          className={`px-4 py-2 text-sm font-medium ${
+            subTab === "camps"
+              ? "border-b-2 border-indigo-500 text-indigo-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Camps
+        </button>
       </div>
 
-      {/* Date controls based on the selected filter */}
-      <div className="bg-white rounded-lg shadow p-4">
-        {dateFilter === "daily" && (
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <label className="text-sm font-medium text-gray-700">
-              Select Date:
-            </label>
-            <input
-              type="date"
-              value={selectedDay.toISOString().split("T")[0]}
-              onChange={(e) => setSelectedDay(new Date(e.target.value))}
-              max={currentDate.toISOString().split("T")[0]}
-              className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
-            />
-          </div>
-        )}
-
-        {dateFilter === "mtd" && (
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <label className="text-sm font-medium text-gray-700">
-              Select Month and Year:
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+      {/* Sub-tab content */}
+      {subTab === "sales" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Subscription Sales Dashboard
+            </h2>
+            <div className="flex flex-wrap space-x-2">
+              <button
+                onClick={() => setDateFilter("daily")}
+                className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  dateFilter === "daily"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
               >
-                {Array.from({ length: currentMonth + 1 }, (_, i) => i).map(
-                  (monthIndex) => {
-                    const monthNames = [
-                      "January",
-                      "February",
-                      "March",
-                      "April",
-                      "May",
-                      "June",
-                      "July",
-                      "August",
-                      "September",
-                      "October",
-                      "November",
-                      "December",
-                    ];
-                    return (
-                      <option key={monthIndex} value={monthIndex}>
-                        {monthNames[monthIndex]}
-                      </option>
-                    );
-                  }
-                )}
-              </select>
-
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+                Daily
+              </button>
+              <button
+                onClick={() => setDateFilter("mtd")}
+                className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  dateFilter === "mtd"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
               >
-                <option value={currentYear}>{currentYear}</option>
-              </select>
+                MTD
+              </button>
+              <button
+                onClick={() => setDateFilter("ytd")}
+                className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  dateFilter === "ytd"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                YTD
+              </button>
+              <button
+                onClick={() => setDateFilter("itd")}
+                className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  dateFilter === "itd"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                ITD
+              </button>
             </div>
           </div>
-        )}
 
-        {dateFilter === "ytd" && (
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <label className="text-sm font-medium text-gray-700">
-              Select Financial Year:
-            </label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
-            >
-              <option value={currentYear}>
-                {currentYear}-{currentYear + 1}
-              </option>
-            </select>
-            <span className="text-sm text-gray-500">
-              (April {selectedYear} - March {selectedYear + 1})
-            </span>
-          </div>
-        )}
+          {/* Date controls based on the selected filter */}
+          <div className="bg-white rounded-lg shadow p-4">
+            {dateFilter === "daily" && (
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <label className="text-sm font-medium text-gray-700">
+                  Select Date:
+                </label>
+                <input
+                  type="date"
+                  value={selectedDay.toISOString().split("T")[0]}
+                  onChange={(e) => setSelectedDay(new Date(e.target.value))}
+                  max={currentDate.toISOString().split("T")[0]}
+                  className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+                />
+              </div>
+            )}
 
-        {dateFilter === "itd" && (
-          <div className="text-sm text-gray-500">
-            Showing all data since inception
-          </div>
-        )}
-      </div>
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">
-            Clinic Code:
-          </label>
-          <div className="flex flex-col gap-2">
-            <div className="relative">
-              <input
-                type="text"
-                value={clinicSearchTerm}
-                onChange={(e) => setClinicSearchTerm(e.target.value)}
-                placeholder="Search clinic code..."
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50 pl-3 pr-10 py-2"
-              />
-              {clinicSearchTerm && (
-                <button
-                  onClick={() => setClinicSearchTerm("")}
-                  className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
+            {dateFilter === "mtd" && (
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <label className="text-sm font-medium text-gray-700">
+                  Select Month and Year:
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
                   >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <select
-              value={clinicFilter}
-              onChange={(e) => setClinicFilter(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
-            >
-              <option value="all">All Clinics</option>
-              {filteredClinicCodes.map((clinicCode) => (
-                <option key={clinicCode} value={clinicCode}>
-                  {clinicCode}
-                </option>
-              ))}
-            </select>
-            <div className="text-xs text-gray-500">
-              {filteredClinicCodes.length} of {uniqueClinicCodes.length} clinics
-              shown
-            </div>
+                    {Array.from({ length: currentMonth + 1 }, (_, i) => i).map(
+                      (monthIndex) => {
+                        const monthNames = [
+                          "January",
+                          "February",
+                          "March",
+                          "April",
+                          "May",
+                          "June",
+                          "July",
+                          "August",
+                          "September",
+                          "October",
+                          "November",
+                          "December",
+                        ];
+                        return (
+                          <option key={monthIndex} value={monthIndex}>
+                            {monthNames[monthIndex]}
+                          </option>
+                        );
+                      }
+                    )}
+                  </select>
+
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+                  >
+                    <option value={currentYear}>{currentYear}</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {dateFilter === "ytd" && (
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <label className="text-sm font-medium text-gray-700">
+                  Select Financial Year:
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+                >
+                  <option value={currentYear}>
+                    {currentYear}-{currentYear + 1}
+                  </option>
+                </select>
+                <span className="text-sm text-gray-500">
+                  (April {selectedYear} - March {selectedYear + 1})
+                </span>
+              </div>
+            )}
+
+            {dateFilter === "itd" && (
+              <div className="text-sm text-gray-500">
+                Showing all data since inception
+              </div>
+            )}
           </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">State:</label>
-          <select
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
-          >
-            <option value="all">All States</option>
-            {uniqueStates.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col">
-            <p className="text-sm font-medium text-gray-500">Total Sales</p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {stats.totalSales}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col">
-            <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-            <p className="text-2xl font-semibold text-gray-900">
-              ₹{stats.totalRevenue.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col">
-            <p className="text-sm font-medium text-gray-500">Unique Products</p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {stats.uniqueProducts}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col">
-            <p className="text-sm font-medium text-gray-500">Payment Methods</p>
-            <div className="mt-1">
-              <p className="text-sm text-gray-600">
-                Cash: {stats.cashPayments}
-              </p>
-              <p className="text-sm text-gray-600">
-                Online: {stats.onlinePayments}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Products Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-base font-medium text-gray-900 mb-4">
-            Product Sales Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={productDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) =>
-                  `${name}: ${(percent * 100).toFixed(0)}%`
-                }
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {productDistribution.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Clinic Code:
+              </label>
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={clinicSearchTerm}
+                    onChange={(e) => setClinicSearchTerm(e.target.value)}
+                    placeholder="Search clinic code..."
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50 pl-3 pr-10 py-2"
                   />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value, name, props) => [value, name]} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Revenue by Product */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-base font-medium text-gray-900 mb-4">
-            Revenue by Product
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={revenueByProduct}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => ["₹" + value.toLocaleString(), "Revenue"]}
-              />
-              <Legend />
-              <Bar dataKey="revenue" fill="#8884d8" name="Revenue (₹)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Clinic Distribution Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-base font-medium text-gray-900 mb-4">
-          Top Clinics by Sales
-        </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart
-            data={clinicDistribution}
-            layout="vertical"
-            margin={{
-              top: 5,
-              right: 30,
-              left: 100,
-              bottom: 5,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" width={80} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="value" fill="#82ca9d" name="Number of Sales" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Recent Transactions */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-base font-medium text-gray-900">
-            Recent Transactions
-          </h3>
-          <button
-            onClick={downloadExcel}
-            className="px-3 py-1 text-sm font-medium rounded-md bg-gray-800 text-white hover:bg-gray-700"
-          >
-            Download Excel
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  {clinicSearchTerm && (
+                    <button
+                      onClick={() => setClinicSearchTerm("")}
+                      className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={clinicFilter}
+                  onChange={(e) => setClinicFilter(e.target.value)}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
                 >
-                  Transaction ID
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Policy Number
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Product
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Clinic Code
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  District
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  State
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Date
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Payment Method
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Amount
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Utilised
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {recentTransactions
-                .slice(
-                  (currentPage - 1) * transactionsPerPage,
-                  currentPage * transactionsPerPage
-                )
-                .map((transaction) => {
-                  const clinicInfo = clinicsData[transaction.clinicCode] || {};
-
-                  return (
-                    <tr key={transaction.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {transaction.transactionId || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {transaction.policyNumber || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {transaction.productName || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {transaction.clinicCode || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {clinicInfo.districtName || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {clinicInfo.state || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(transaction.timestamp)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.paymentMethod === "cash"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {transaction.paymentMethod === "cash"
-                            ? "Cash"
-                            : "UPI"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ₹{transaction.price?.toLocaleString() || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            utilizedPolicyNumbers.has(transaction.policyNumber)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {utilizedPolicyNumbers.has(transaction.policyNumber)
-                            ? "Yes"
-                            : "No"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {recentTransactions.length > transactionsPerPage && (
-          <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
-                  currentPage === 1
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-50"
-                }`}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() =>
-                  setCurrentPage((prev) =>
-                    Math.min(
-                      prev + 1,
-                      Math.ceil(recentTransactions.length / transactionsPerPage)
-                    )
-                  )
-                }
-                disabled={
-                  currentPage ===
-                  Math.ceil(recentTransactions.length / transactionsPerPage)
-                }
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
-                  currentPage ===
-                  Math.ceil(recentTransactions.length / transactionsPerPage)
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-50"
-                }`}
-              >
-                Next
-              </button>
+                  <option value="all">All Clinics</option>
+                  {filteredClinicCodes.map((clinicCode) => (
+                    <option key={clinicCode} value={clinicCode}>
+                      {clinicCode}
+                    </option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500">
+                  {filteredClinicCodes.length} of {uniqueClinicCodes.length} clinics
+                  shown
+                </div>
+              </div>
             </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing{" "}
-                  <span className="font-medium">
-                    {Math.min(
-                      (currentPage - 1) * transactionsPerPage + 1,
-                      recentTransactions.length
-                    )}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-medium">
-                    {Math.min(
-                      currentPage * transactionsPerPage,
-                      recentTransactions.length
-                    )}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-medium">
-                    {recentTransactions.length}
-                  </span>{" "}
-                  results
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">State:</label>
+              <select
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring focus:ring-gray-500 focus:ring-opacity-50"
+              >
+                <option value="all">All States</option>
+                {uniqueStates.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col">
+                <p className="text-sm font-medium text-gray-500">Total Sales</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {stats.totalSales}
                 </p>
               </div>
-              <div>
-                <nav
-                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                  aria-label="Pagination"
-                >
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col">
+                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  ₹{stats.totalRevenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col">
+                <p className="text-sm font-medium text-gray-500">Unique Products</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {stats.uniqueProducts}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col">
+                <p className="text-sm font-medium text-gray-500">Payment Methods</p>
+                <div className="mt-1">
+                  <p className="text-sm text-gray-600">
+                    Cash: {stats.cashPayments}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Online: {stats.onlinePayments}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Products Distribution */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-base font-medium text-gray-900 mb-4">
+                Product Sales Distribution
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={productDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
                     }
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {productDistribution.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name, props) => [value, name]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Revenue by Product */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-base font-medium text-gray-900 mb-4">
+                Revenue by Product
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={revenueByProduct}
+                  margin={{
+                    top: 5,
+                    right: 30,
+                    left: 20,
+                    bottom: 5,
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value) => ["₹" + value.toLocaleString(), "Revenue"]}
+                  />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#8884d8" name="Revenue (₹)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Clinic Distribution Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-base font-medium text-gray-900 mb-4">
+              Top Clinics by Sales
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={clinicDistribution}
+                layout="vertical"
+                margin={{
+                  top: 5,
+                  right: 30,
+                  left: 100,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#82ca9d" name="Number of Sales" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Recent Transactions */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-base font-medium text-gray-900">
+                Recent Transactions
+              </h3>
+              <button
+                onClick={downloadExcel}
+                className="px-3 py-1 text-sm font-medium rounded-md bg-gray-800 text-white hover:bg-gray-700"
+              >
+                Download Excel
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Transaction ID
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Policy Number
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Product
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Clinic Code
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      District
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      State
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Date
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Payment Method
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Amount
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Utilised
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {recentTransactions
+                    .slice(
+                      (currentPage - 1) * transactionsPerPage,
+                      currentPage * transactionsPerPage
+                    )
+                    .map((transaction) => {
+                      const clinicInfo = clinicsData[transaction.clinicCode] || {};
+
+                      return (
+                        <tr key={transaction.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {transaction.transactionId || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {transaction.policyNumber || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {transaction.productName || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {transaction.clinicCode || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {clinicInfo.districtName || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {clinicInfo.state || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(transaction.timestamp)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                transaction.paymentMethod === "cash"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {transaction.paymentMethod === "cash"
+                                ? "Cash"
+                                : "UPI"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ₹{transaction.price?.toLocaleString() || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                utilizedPolicyNumbers.has(transaction.policyNumber)
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {utilizedPolicyNumbers.has(transaction.policyNumber)
+                                ? "Yes"
+                                : "No"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {recentTransactions.length > transactionsPerPage && (
+              <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
                       currentPage === 1
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:bg-gray-50"
                     }`}
                   >
-                    <span className="sr-only">Previous</span>
-                    &lsaquo;
+                    Previous
                   </button>
-
-                  {/* Page numbers */}
-                  {[
-                    ...Array(
-                      Math.min(
-                        5,
-                        Math.ceil(
-                          recentTransactions.length / transactionsPerPage
-                        )
-                      )
-                    ).keys(),
-                  ].map((i) => {
-                    const page = i + 1;
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border ${
-                          currentPage === page
-                            ? "z-10 bg-gray-900 border-gray-900 text-white"
-                            : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                        } text-sm font-medium`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-
                   <button
                     onClick={() =>
                       setCurrentPage((prev) =>
                         Math.min(
                           prev + 1,
-                          Math.ceil(
-                            recentTransactions.length / transactionsPerPage
-                          )
+                          Math.ceil(recentTransactions.length / transactionsPerPage)
                         )
                       )
                     }
@@ -1261,22 +1194,125 @@ export const SubscriptionDashboard = () => {
                       currentPage ===
                       Math.ceil(recentTransactions.length / transactionsPerPage)
                     }
-                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
                       currentPage ===
                       Math.ceil(recentTransactions.length / transactionsPerPage)
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:bg-gray-50"
                     }`}
                   >
-                    <span className="sr-only">Next</span>
-                    &rsaquo;
+                    Next
                   </button>
-                </nav>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{" "}
+                      <span className="font-medium">
+                        {Math.min(
+                          (currentPage - 1) * transactionsPerPage + 1,
+                          recentTransactions.length
+                        )}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-medium">
+                        {Math.min(
+                          currentPage * transactionsPerPage,
+                          recentTransactions.length
+                        )}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-medium">
+                        {recentTransactions.length}
+                      </span>{" "}
+                      results
+                    </p>
+                  </div>
+                  <div>
+                    <nav
+                      className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                      aria-label="Pagination"
+                    >
+                      <button
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
+                          currentPage === 1
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="sr-only">Previous</span>
+                        &lsaquo;
+                      </button>
+
+                      {/* Page numbers */}
+                      {[
+                        ...Array(
+                          Math.min(
+                            5,
+                            Math.ceil(
+                              recentTransactions.length / transactionsPerPage
+                            )
+                          )
+                        ).keys(),
+                      ].map((i) => {
+                        const page = i + 1;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border ${
+                              currentPage === page
+                                ? "z-10 bg-gray-900 border-gray-900 text-white"
+                                : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                            } text-sm font-medium`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(
+                              prev + 1,
+                              Math.ceil(
+                                recentTransactions.length / transactionsPerPage
+                              )
+                            )
+                          )
+                        }
+                        disabled={
+                          currentPage ===
+                          Math.ceil(recentTransactions.length / transactionsPerPage)
+                        }
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
+                          currentPage ===
+                          Math.ceil(recentTransactions.length / transactionsPerPage)
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="sr-only">Next</span>
+                        &rsaquo;
+                      </button>
+                    </nav>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+
+      )}
+
+      {subTab === "camps" && (
+        <CampsDashboard/>
+      )}
     </div>
   );
 };
