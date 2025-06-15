@@ -170,18 +170,26 @@ const CampsDashboard = () => {
           
           let policiesSold = 0;
           
-          if (lastCampDate !== "N/A" && salesByClinic[clinicCode]) {
-            const lastCampTimestamp = new Date(lastCampDate);
+          if (salesByClinic[clinicCode]) {
             const uniquePolicies = new Set();
             
             salesByClinic[clinicCode].forEach(sale => {
-              // Only count non-cancelled policies after last camp date, excluding EasyCure products
+              // Only count non-cancelled policies, excluding EasyCure products
               if (!sale.cancelled && 
                   sale.policyCreatedAt && 
-                  sale.policyCreatedAt.toDate() > lastCampTimestamp &&
                   sale.policyNumber &&
                   sale.productId !== 'EasyCure') {
-                uniquePolicies.add(sale.policyNumber);
+                
+                // If there's no last camp date, count all policies
+                // If there is a last camp date, only count policies after that date
+                if (lastCampDate === "N/A") {
+                  uniquePolicies.add(sale.policyNumber);
+                } else {
+                  const lastCampTimestamp = new Date(lastCampDate);
+                  if (sale.policyCreatedAt.toDate() > lastCampTimestamp) {
+                    uniquePolicies.add(sale.policyNumber);
+                  }
+                }
               }
             });
             
@@ -271,7 +279,9 @@ const CampsDashboard = () => {
       'Last Camp Date': clinic.lastCampDate && clinic.lastCampDate !== "N/A"
         ? new Date(clinic.lastCampDate).toLocaleDateString("en-GB")
         : "N/A",
-      'Policies Sold Since Last Camp Date': clinic.policiesSold
+      'Policies Sold': clinic.lastCampDate === "N/A" 
+        ? clinic.policiesSold 
+        : clinic.policiesSold
     }));
 
     const csvHeaders = Object.keys(csvData[0] || {});
@@ -386,7 +396,7 @@ const CampsDashboard = () => {
                     onClick={() => handleSort('policiesSold')}
                   >
                     <div className="flex items-center gap-2">
-                      Policies Sold Since Last Camp Date
+                      Policies Sold
                       <SortIndicator column="policiesSold" />
                     </div>
                   </th>
@@ -411,6 +421,7 @@ const CampsDashboard = () => {
                       }`}>
                         {clinic.policiesSold}
                       </span>
+                      
                     </td>
                   </tr>
                 ))}
