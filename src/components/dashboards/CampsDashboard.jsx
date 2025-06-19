@@ -79,6 +79,7 @@ const CampsDashboard = () => {
   // New state for filtering and sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [policiesFilter, setPoliciesFilter] = useState('all'); // 'all', 'less25', 'greater25'
+  const [conversionsFilter, setConversionsFilter] = useState('all'); // 'all', 'hasUnutilized', 'noUnutilized'
   
   const clinicsPerPage = 20;
 
@@ -88,7 +89,7 @@ const CampsDashboard = () => {
         setLoading(true);
         setLoadingProgress(0);
 
-        // Step 1: Fetch all clinics from Firestore (10% progress)
+        // Step 1: Fetch all clinics from Firestore (8% progress)
         console.time('Fetch clinics');
         const clinicsQuery = query(collection(db, "clinics"));
         const clinicsSnapshot = await getDocs(clinicsQuery);
@@ -101,9 +102,9 @@ const CampsDashboard = () => {
         }
 
         const clinicCodes = clinicsSnapshot.docs.map(doc => doc.data().clinicCode || doc.id);
-        setLoadingProgress(10);
+        setLoadingProgress(8);
 
-        // Step 2: Fetch all health camps at once (30% progress)
+        // Step 2: Fetch all health camps at once (25% progress)
         console.time('Fetch health camps');
         const healthCampsRef = ref(mswasthDb, "healthCamps");
         const healthCampsSnapshot = await get(healthCampsRef);
@@ -113,9 +114,21 @@ const CampsDashboard = () => {
         if (healthCampsSnapshot.exists()) {
           healthCamps = healthCampsSnapshot.val();
         }
-        setLoadingProgress(30);
+        setLoadingProgress(25);
 
-        // Step 3: Process camp data to find last camp date for each clinic (50% progress)
+        // Step 3: Fetch camp conversions (40% progress)
+        console.time('Fetch camp conversions');
+        const campConversionsRef = ref(mswasthDb, "camp_conversions");
+        const campConversionsSnapshot = await get(campConversionsRef);
+        console.timeEnd('Fetch camp conversions');
+
+        let campConversions = {};
+        if (campConversionsSnapshot.exists()) {
+          campConversions = campConversionsSnapshot.val();
+        }
+        setLoadingProgress(40);
+
+        // Step 4: Process camp data to find last camp date for each clinic (55% progress)
         console.time('Process camp data');
         const clinicLastCampMap = {};
         
@@ -131,15 +144,16 @@ const CampsDashboard = () => {
           }
         });
         console.timeEnd('Process camp data');
-        setLoadingProgress(50);
+        setLoadingProgress(55);
 
-        // Step 4: Fetch all sales data at once (70% progress)
+        // Step 5: Fetch all sales data at once (70% progress)
         console.time('Fetch sales data');
         const salesQuery = query(collection(db, "sales"));
         const salesSnapshot = await getDocs(salesQuery);
         console.timeEnd('Fetch sales data');
+        setLoadingProgress(70);
 
-        // Step 5: Process sales data efficiently (90% progress)
+        // Step 6: Process sales data efficiently (80% progress)
         console.time('Process sales data');
         const salesByClinic = {};
         
@@ -161,12 +175,52 @@ const CampsDashboard = () => {
           });
         });
         console.timeEnd('Process sales data');
+        setLoadingProgress(80);
+
+        // Step 7: Process camp conversions to find which sold policies are NOT in conversions (90% progress)
+        console.time('Process camp conversions');
+        const utilizedPolicyNumbers = new Set();
+        
+        // Get all policy numbers that exist in camp_conversions
+        Object.entries(campConversions).forEach(([conversionId, conversion]) => {
+          if (conversion.policyNumber) {
+            utilizedPolicyNumbers.add(conversion.policyNumber);
+          }
+        });
+        
+        // For each clinic, find sold policies that are NOT in camp_conversions
+        const unutilizedConversionsByClinic = {};
+        
+        Object.entries(salesByClinic).forEach(([clinicCode, sales]) => {
+          let unutilizedCount = 0;
+          const uniqueSoldPolicies = new Set();
+          
+          // Get all unique sold policy numbers for this clinic
+          sales.forEach(sale => {
+            if (!sale.cancelled && 
+                sale.policyNumber && 
+                sale.productId !== 'EasyCure') {
+              uniqueSoldPolicies.add(sale.policyNumber);
+            }
+          });
+          
+          // Count how many sold policies are NOT in camp_conversions
+          uniqueSoldPolicies.forEach(policyNumber => {
+            if (!utilizedPolicyNumbers.has(policyNumber)) {
+              unutilizedCount++;
+            }
+          });
+          
+          unutilizedConversionsByClinic[clinicCode] = unutilizedCount;
+        });
+        console.timeEnd('Process camp conversions');
         setLoadingProgress(90);
 
-        // Step 6: Calculate final data for each clinic (100% progress)
+        // Step 8: Calculate final data for each clinic (100% progress)
         console.time('Calculate final data');
         const clinicDataResults = clinicCodes.map(clinicCode => {
           const lastCampDate = clinicLastCampMap[clinicCode] || "N/A";
+          const unutilizedConversions = unutilizedConversionsByClinic[clinicCode] || 0;
           
           let policiesSold = 0;
           
@@ -200,6 +254,7 @@ const CampsDashboard = () => {
             clinicCode,
             lastCampDate,
             policiesSold,
+            unutilizedConversions,
           };
         });
         console.timeEnd('Calculate final data');
@@ -239,6 +294,13 @@ const CampsDashboard = () => {
       filtered = filtered.filter(clinic => clinic.policiesSold >= 25);
     }
 
+    // Apply conversions filter
+    if (conversionsFilter === 'hasUnutilized') {
+      filtered = filtered.filter(clinic => clinic.unutilizedConversions > 0);
+    } else if (conversionsFilter === 'noUnutilized') {
+      filtered = filtered.filter(clinic => clinic.unutilizedConversions === 0);
+    }
+
     // Apply sorting
     if (sortConfig.key) {
       filtered.sort((a, b) => {
@@ -272,6 +334,14 @@ const CampsDashboard = () => {
 
   const totalPages = Math.ceil(filteredAndSortedClinics.length / clinicsPerPage);
 
+  // Calculate summary statistics for filtered data only
+  const totalUnutilizedConversions = filteredAndSortedClinics.reduce(
+    (sum, clinic) => sum + clinic.unutilizedConversions, 0
+  );
+  const clinicsWithUnutilized = filteredAndSortedClinics.filter(
+    clinic => clinic.unutilizedConversions > 0
+  ).length;
+
   // Download function
   const downloadCSV = () => {
     const csvData = filteredAndSortedClinics.map(clinic => ({
@@ -279,9 +349,8 @@ const CampsDashboard = () => {
       'Last Camp Date': clinic.lastCampDate && clinic.lastCampDate !== "N/A"
         ? new Date(clinic.lastCampDate).toLocaleDateString("en-GB")
         : "N/A",
-      'Policies Sold': clinic.lastCampDate === "N/A" 
-        ? clinic.policiesSold 
-        : clinic.policiesSold
+      'Policies Sold': clinic.policiesSold,
+      'Unutilized Sales': clinic.unutilizedConversions
     }));
 
     const csvHeaders = Object.keys(csvData[0] || {});
@@ -315,7 +384,7 @@ const CampsDashboard = () => {
     <div>
       <h3 className="text-lg font-medium text-gray-900">Camps Overview</h3>
       <p className="text-sm text-gray-600">
-        This section displays data related to camps.
+        This section displays data related to camps, including sales not found in conversions.
       </p>
 
       {loading ? (
@@ -355,6 +424,16 @@ const CampsDashboard = () => {
                 <option value="all">All Policies</option>
                 <option value="less25">Less than 25 policies</option>
                 <option value="greater25">25 or more policies</option>
+              </select>
+              
+              <select
+                value={conversionsFilter}
+                onChange={(e) => setConversionsFilter(e.target.value)}
+                className="border border-gray-300 rounded px-4 py-2"
+              >
+                <option value="all">All Conversions</option>
+                <option value="hasUnutilized">Has Unutilized Sales</option>
+                <option value="noUnutilized">No Unutilized Sales</option>
               </select>
               
               <button
@@ -400,6 +479,15 @@ const CampsDashboard = () => {
                       <SortIndicator column="policiesSold" />
                     </div>
                   </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('unutilizedConversions')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Unutilized Sales
+                      <SortIndicator column="unutilizedConversions" />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -421,7 +509,15 @@ const CampsDashboard = () => {
                       }`}>
                         {clinic.policiesSold}
                       </span>
-                      
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-left">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        clinic.unutilizedConversions > 0 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {clinic.unutilizedConversions}
+                      </span>
                     </td>
                   </tr>
                 ))}
