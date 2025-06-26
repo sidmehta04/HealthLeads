@@ -1,4 +1,4 @@
-// TestWorkflowStatus.jsx
+// TestWorkflowStatus.jsx - Fixed scrolling issue
 import React, { useState, useEffect } from "react";
 import { database } from "../../firebase/config";
 import { ref, onValue, off } from "firebase/database";
@@ -66,24 +66,26 @@ const TestWorkflowStatus = ({ activeContext, onTestClick }) => {
     const displayTests = showAllRecords ? tests : tests.slice(0, 5);
     return (
       <div className="flex flex-col gap-4">
-        <div className="relative rounded-md shadow">
-          <div className="overflow-y-auto max-h-96">
-            <table className="w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+        {/* Fixed scrolling container */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="overflow-auto max-h-96 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <table className="w-full">
+              {/* Simplified header without sticky positioning */}
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                     Test ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                     Patient Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                     Contact
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                     Payment
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                     Vendor
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -92,28 +94,33 @@ const TestWorkflowStatus = ({ activeContext, onTestClick }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {displayTests.map((test) => (
-                  <tr key={test.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+                {displayTests.map((test, index) => (
+                  <tr 
+                    key={test.id} 
+                    className={`hover:bg-gray-50 transition-colors ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                    }`}
+                  >
+                    <td className="px-6 py-4 border-r border-gray-100">
                       <button
                         onClick={() => onTestClick?.(test)}
-                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
                       >
                         {test.testCode}
                       </button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-100">
                       <span className="text-sm font-medium text-gray-900">
                         {test.name}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-100">
                       <span className="text-sm text-gray-500">{test.mobileNo}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-100">
                       <StatusBadge status={test.paymentStatus} />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 border-r border-gray-100">
                       <StatusBadge status={test.vendorStatus} />
                     </td>
                     <td className="px-6 py-4">
@@ -128,7 +135,7 @@ const TestWorkflowStatus = ({ activeContext, onTestClick }) => {
         {tests.length > 5 && (
           <button
             onClick={() => setShowAllRecords(!showAllRecords)}
-            className="self-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+            className="self-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
           >
             {showAllRecords ? "Show Less" : `Show All (${tests.length})`}
           </button>
