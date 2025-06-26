@@ -132,7 +132,11 @@ export function TestEntryForm() {
     }
   }, [searchTestCode, allTestEntries]);
   const handleTestClick = (test) => {
-    setFormData(test);
+    // Update to handle tests array instead of single test
+    setFormData({
+      ...test,
+      tests: test.tests || [], // Ensure tests is an array
+    });
     setEntryId(test.id);
     setSearchTestCode(test.testCode);
     setIsDropdownOpen(false);
@@ -165,10 +169,9 @@ export function TestEntryForm() {
     pincode: "",
     city: "",
     address: "",
-    testCode: "",
-    testName: "",
-    price: "",
-    bookingId: "",
+    tests: [], // Change from single test to array of tests
+    totalPrice: 0, // Add total price calculation
+
     hasPartner: false,
     partnerName: "",
     partnerReferenceId: "",
@@ -183,13 +186,45 @@ export function TestEntryForm() {
   const handleTestSelection = (testName) => {
     if (!editMode && !viewOnlyMode) {
       const testCode = generateUniqueTestCode(testName);
-      setFormData((prev) => ({
-        ...prev,
+      const newTest = {
         testName,
         testCode,
-        price: TEST_CATALOG[testName]?.price || "",
+        price: TEST_CATALOG[testName]?.price || 0,
         bookingId: `BK-${testCode}`,
-      }));
+      };
+
+      setFormData((prev) => {
+        const updatedTests = [...prev.tests, newTest];
+        const totalPrice = updatedTests.reduce(
+          (sum, test) => sum + (test.price || 0),
+          0
+        );
+
+        return {
+          ...prev,
+          tests: updatedTests,
+          totalPrice,
+        };
+      });
+    }
+  };
+  const handleRemoveTest = (indexToRemove) => {
+    if (!editMode && !viewOnlyMode) {
+      setFormData((prev) => {
+        const updatedTests = prev.tests.filter(
+          (_, index) => index !== indexToRemove
+        );
+        const totalPrice = updatedTests.reduce(
+          (sum, test) => sum + (test.price || 0),
+          0
+        );
+
+        return {
+          ...prev,
+          tests: updatedTests,
+          totalPrice,
+        };
+      });
     }
   };
 
@@ -212,13 +247,18 @@ export function TestEntryForm() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (viewOnlyMode) return;
-    
-    if (editMode && !["paymentMode", "paymentReference", "paymentStatus", "isFree"].includes(name)) {
+
+    if (
+      editMode &&
+      !["paymentMode", "paymentReference", "paymentStatus", "isFree"].includes(
+        name
+      )
+    ) {
       return;
     }
-  
+
     if (name === "hasPartner") {
       setFormData((prev) => ({
         ...prev,
@@ -240,8 +280,12 @@ export function TestEntryForm() {
         [name]: value,
         // If switching to cash, set reference to "N/A"
         // If switching to prepaid, clear the reference
-        paymentReference: value === "cash" ? "N/A" : 
-                         value === "upi" ? "" : prev.paymentReference
+        paymentReference:
+          value === "cash"
+            ? "N/A"
+            : value === "upi"
+            ? ""
+            : prev.paymentReference,
       }));
     } else {
       setFormData((prev) => ({
@@ -292,11 +336,13 @@ export function TestEntryForm() {
 
     try {
       if (editMode) {
+        // Update existing entry - only payment details can be modified
         const entryRef = ref(database, `testEntries/${entryId}`);
         const updates = {
           paymentMode: formData.paymentMode,
           paymentReference: formData.paymentReference,
           paymentStatus: formData.paymentStatus,
+          isFree: formData.isFree,
           metadata: {
             ...formData.metadata,
             lastModified: new Date().toISOString(),
@@ -311,17 +357,19 @@ export function TestEntryForm() {
           setEditMode(false);
         }
       } else {
-        const requiredFields = [
-          "name",
-          "mobileNo",
-          "age",
-          "gender",
-          "address",
-          "testName",
-        ];
+        // Create new entry
+        const requiredFields = ["name", "mobileNo", "age", "gender", "address"];
+
         const missingFields = requiredFields.filter(
           (field) => !formData[field]
         );
+
+        // Check if at least one test is selected
+        if (!formData.tests || formData.tests.length === 0) {
+          setError("Please select at least one test");
+          setLoading(false);
+          return;
+        }
 
         if (missingFields.length > 0) {
           setError(
@@ -331,9 +379,73 @@ export function TestEntryForm() {
           return;
         }
 
-        const newEntryRef = ref(database, "testEntries");
-        await push(newEntryRef, {
-          ...formData,
+        // Validate payment details if not free
+        if (!formData.isFree) {
+          if (!formData.paymentMode) {
+            setError("Please select a payment mode");
+            setLoading(false);
+            return;
+          }
+
+          if (!formData.paymentReference) {
+            setError("Please enter payment reference");
+            setLoading(false);
+            return;
+          }
+
+          if (!formData.paymentStatus) {
+            setError("Please select payment status");
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Generate a master booking ID for the entire entry
+        const masterBookingId = `BK-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .substring(2, 5)}`.toUpperCase();
+
+        // Prepare the entry data
+        const entryData = {
+          // Patient details
+          name: formData.name,
+          mobileNo: formData.mobileNo,
+          age: formData.age,
+          gender: formData.gender,
+          district: formData.district,
+          state: formData.state,
+          pincode: formData.pincode,
+          city: formData.city,
+          address: formData.address,
+
+          // Multiple tests data
+          tests: formData.tests,
+          totalPrice: formData.totalPrice,
+          testCount: formData.tests.length,
+
+          // Master booking reference
+          masterBookingId: masterBookingId,
+
+          // Individual test codes for search purposes
+          testCodes: formData.tests.map((test) => test.testCode),
+          testNames: formData.tests.map((test) => test.testName),
+
+          // Partner details
+          hasPartner: formData.hasPartner,
+          partnerName: formData.hasPartner ? formData.partnerName : "",
+          partnerReferenceId: formData.hasPartner
+            ? formData.partnerReferenceId
+            : "",
+
+          // Payment details
+          isFree: formData.isFree,
+          paymentMode: formData.isFree ? "free" : formData.paymentMode,
+          paymentReference: formData.isFree
+            ? "FREE"
+            : formData.paymentReference,
+          paymentStatus: formData.isFree ? "completed" : formData.paymentStatus,
+
+          // Submission metadata
           submitter: {
             email: currentUser.email,
             uid: currentUser.uid,
@@ -343,16 +455,36 @@ export function TestEntryForm() {
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString(),
             status: "active",
+            entryType: "multiple_tests",
           },
-        });
-        alert("Test entry submitted successfully!");
+        };
+
+        // Submit to Firebase
+        const newEntryRef = ref(database, "testEntries");
+        await push(newEntryRef, entryData);
+
+        // Show success message with details
+        const testsList = formData.tests
+          .map((test) => test.testName)
+          .join(", ");
+        alert(
+          `Test entry submitted successfully!\n\n` +
+            `Master Booking ID: ${masterBookingId}\n` +
+            `Tests: ${testsList}\n` +
+            `Total Amount: ₹${formData.totalPrice}\n` +
+            `Payment Status: ${
+              formData.isFree ? "Free" : formData.paymentStatus
+            }`
+        );
       }
 
+      // Reset form and navigate if not in view mode
       if (!viewOnlyMode) {
         resetForm();
         navigate("/individual-health-camp");
       }
     } catch (error) {
+      console.error("Submit error:", error);
       setError(
         `Failed to ${editMode ? "update" : "submit"} data: ${error.message}`
       );
@@ -615,6 +747,7 @@ export function TestEntryForm() {
             </div>
 
             {/* Test Details Section */}
+            {/* Test Details Section */}
             <div className="space-y-6">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
                 <FileText className="w-5 h-5 text-blue-600" />
@@ -623,55 +756,70 @@ export function TestEntryForm() {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Test Name
-                  </label>
-                  <TestNameSearch
-                    testCatalog={TEST_CATALOG}
-                    onTestSelect={handleTestSelection}
-                    disabled={editMode || viewOnlyMode}
-                    value={formData.testName}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Test Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.testCode}
-                    className="w-full h-12 border-gray-300 bg-gray-50"
-                    readOnly
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Booking ID
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bookingId}
-                    className="w-full h-12 border-gray-300 bg-gray-50"
-                    readOnly
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Price (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    className="w-full h-12 border-gray-300 bg-gray-50"
-                    readOnly
-                  />
-                </div>
+              {/* Test Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Add Test
+                </label>
+                <TestNameSearch
+                  testCatalog={TEST_CATALOG}
+                  onTestSelect={handleTestSelection}
+                  disabled={editMode || viewOnlyMode}
+                  value="" // Keep empty for multiple selections
+                />
               </div>
+
+              {/* Selected Tests Display */}
+              {formData.tests.length > 0 && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-gray-800">
+                    Selected Tests:
+                  </h4>
+                  {formData.tests.map((test, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
+                    >
+                      <div className="grid grid-cols-3 gap-4 flex-1">
+                        <div>
+                          <span className="text-sm text-gray-600">
+                            Test Name:
+                          </span>
+                          <p className="font-medium">{test.testName}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">
+                            Test Code:
+                          </span>
+                          <p className="font-medium">{test.testCode}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">Price:</span>
+                          <p className="font-medium">₹{test.price}</p>
+                        </div>
+                      </div>
+                      {!editMode && !viewOnlyMode && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTest(index)}
+                          className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Total Price Display */}
+                  <div className="flex justify-end">
+                    <div className="bg-blue-50 px-4 py-2 rounded-lg">
+                      <span className="text-lg font-semibold text-blue-800">
+                        Total: ₹{formData.totalPrice}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Partner Details Section */}

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Users,
   ClipboardCheck,
+  CreditCard,
 } from "lucide-react";
 import TestSearch from "./TestSearch";
 import TestWorkflowStatus from "./TestWorkflowStatus";
@@ -80,17 +81,38 @@ export function ReportStatus() {
   useEffect(() => {
     if (searchTestCode.trim()) {
       const filtered = allTestEntries.filter(
-        (entry) =>
-          (entry.testCode &&
-            entry.testCode
-              .toLowerCase()
-              .includes(searchTestCode.toLowerCase())) ||
-          (entry.name &&
-            entry.name.toLowerCase().includes(searchTestCode.toLowerCase())) ||
-          (entry.bookingId &&
-            entry.bookingId
-              .toLowerCase()
-              .includes(searchTestCode.toLowerCase()))
+        (entry) => {
+          // Check master booking ID
+          if (entry.masterBookingId && 
+              entry.masterBookingId.toLowerCase().includes(searchTestCode.toLowerCase())) {
+            return true;
+          }
+          
+          // Check individual test codes
+          if (entry.testCodes && entry.testCodes.some(code => 
+              code.toLowerCase().includes(searchTestCode.toLowerCase()))) {
+            return true;
+          }
+          
+          // Check patient name
+          if (entry.name && 
+              entry.name.toLowerCase().includes(searchTestCode.toLowerCase())) {
+            return true;
+          }
+          
+          // Legacy single test support
+          if (entry.testCode && 
+              entry.testCode.toLowerCase().includes(searchTestCode.toLowerCase())) {
+            return true;
+          }
+          
+          if (entry.bookingId && 
+              entry.bookingId.toLowerCase().includes(searchTestCode.toLowerCase())) {
+            return true;
+          }
+          
+          return false;
+        }
       );
       setSearchResults(filtered.slice(0, 5));
       setIsDropdownOpen(true);
@@ -99,9 +121,11 @@ export function ReportStatus() {
       setIsDropdownOpen(false);
     }
   }, [searchTestCode, allTestEntries]);
+
   // Add new handler for test clicks from TestWorkflowStatus
   const handleTestClick = (test) => {
-    setSearchTestCode(test.testCode);
+    const searchCode = test.masterBookingId || test.testCode || "";
+    setSearchTestCode(searchCode);
     setTestData(test);
     setEntryId(test.id);
     setReportStatus(test.reportStatus || "not_submitted");
@@ -110,7 +134,8 @@ export function ReportStatus() {
   };
 
   const handleSearchResultSelect = (entry) => {
-    setSearchTestCode(entry.testCode);
+    const searchCode = entry.masterBookingId || entry.testCode || "";
+    setSearchTestCode(searchCode);
     setTestData(entry);
     setEntryId(entry.id);
     setReportStatus(entry.reportStatus || "not_submitted");
@@ -119,7 +144,7 @@ export function ReportStatus() {
 
   const handleSearch = () => {
     if (!searchTestCode.trim()) {
-      setError("Please enter a test code");
+      setError("Please enter a test code or booking ID");
       return;
     }
 
@@ -128,9 +153,27 @@ export function ReportStatus() {
 
     try {
       const matchingEntry = allTestEntries.find(
-        (entry) =>
-          entry.testCode &&
-          entry.testCode.toUpperCase() === searchTestCode.toUpperCase()
+        (entry) => {
+          // Check master booking ID
+          if (entry.masterBookingId && 
+              entry.masterBookingId.toUpperCase() === searchTestCode.toUpperCase()) {
+            return true;
+          }
+          
+          // Check individual test codes
+          if (entry.testCodes && entry.testCodes.some(code => 
+              code.toUpperCase() === searchTestCode.toUpperCase())) {
+            return true;
+          }
+          
+          // Legacy single test support
+          if (entry.testCode && 
+              entry.testCode.toUpperCase() === searchTestCode.toUpperCase()) {
+            return true;
+          }
+          
+          return false;
+        }
       );
 
       if (matchingEntry) {
@@ -138,7 +181,7 @@ export function ReportStatus() {
         setEntryId(matchingEntry.id);
         setReportStatus(matchingEntry.reportStatus || "not_submitted");
       } else {
-        setError("No entry found with this test code");
+        setError("No entry found with this test code or booking ID");
         setTestData(null);
         setEntryId(null);
       }
@@ -201,17 +244,23 @@ export function ReportStatus() {
         </div>
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 ">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
               <h2 className="text-2xl font-bold text-white">Report Status</h2>
-
-              <TestSearch
-                testEntries={allTestEntries}
-                onSearch={handleSearch}
-                onSelect={handleSearchResultSelect}
-                loading={loading}
-              />
+              <p className="text-blue-100 text-sm mt-1">
+                Search by test code or master booking ID
+              </p>
             </div>
+
+            <TestSearch
+              testEntries={allTestEntries}
+              onSearch={handleSearch}
+              onSelect={handleSearchResultSelect}
+              loading={loading}
+              placeholder="Enter test code or booking ID"
+            />
           </div>
+        </div>
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           
           {error && (
@@ -285,35 +334,156 @@ export function ReportStatus() {
                   <FileText className="w-5 h-5 text-blue-600" />
                   <h3 className="text-lg font-semibold">Test Details</h3>
                 </div>
+                
+                {/* Check if it's multiple tests or single test */}
+                {testData.tests && testData.tests.length > 0 ? (
+                  // Multiple tests display
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Master Booking ID</p>
+                          <p className="font-medium">{testData.masterBookingId}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Total Tests</p>
+                          <p className="font-medium">{testData.testCount || testData.tests.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Total Price</p>
+                          <p className="font-medium">₹{testData.totalPrice}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Entry Type</p>
+                          <p className="font-medium">Multiple Tests</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Individual Tests */}
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-gray-800">Individual Tests:</h4>
+                      {testData.tests.map((test, index) => (
+                        <div key={index} className="bg-gray-50 p-4 rounded-lg border">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Test Name</p>
+                              <p className="font-medium">{test.testName}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Test Code</p>
+                              <p className="font-medium">{test.testCode}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Price</p>
+                              <p className="font-medium">₹{test.price}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Vendor Status for Multiple Tests */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Vendor Status</p>
+                          <p className={`font-medium capitalize ${
+                            testData.vendorStatus === "completed" 
+                              ? "text-green-600" 
+                              : "text-yellow-600"
+                          }`}>
+                            {testData.vendorStatus || "Not Completed"}
+                          </p>
+                        </div>
+                        {testData.vendorBookingId && (
+                          <div>
+                            <p className="text-sm text-gray-600">Vendor Booking ID</p>
+                            <p className="font-medium">{testData.vendorBookingId}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Single test display (legacy support)
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600">Test Name</p>
+                      <p className="font-medium">{testData.testName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Test Code</p>
+                      <p className="font-medium">{testData.testCode}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Booking ID</p>
+                      <p className="font-medium">{testData.bookingId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Price</p>
+                      <p className="font-medium">₹{testData.price}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Vendor Status</p>
+                      <p className={`font-medium capitalize ${
+                        testData.vendorStatus === "completed" 
+                          ? "text-green-600" 
+                          : "text-yellow-600"
+                      }`}>
+                        {testData.vendorStatus || "Not Completed"}
+                      </p>
+                    </div>
+                    {testData.vendorBookingId && (
+                      <div>
+                        <p className="text-sm text-gray-600">Vendor Booking ID</p>
+                        <p className="font-medium">{testData.vendorBookingId}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold">Payment Details</h3>
+                </div>
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                   <div>
-                    <p className="text-sm text-gray-600">Test Name</p>
-                    <p className="font-medium">{testData.testName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Test Code</p>
-                    <p className="font-medium">{testData.testCode}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Booking ID</p>
-                    <p className="font-medium">{testData.bookingId}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Price</p>
-                    <p className="font-medium">₹{testData.price}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Vendor Status</p>
+                    <p className="text-sm text-gray-600">Payment Mode</p>
                     <p className="font-medium capitalize">
-                      {testData.vendorStatus || "Not Completed"}
+                      {testData.isFree ? "Free" : (testData.paymentMode || "Not Set")}
                     </p>
                   </div>
-                  {testData.vendorBookingId && (
-                    <div>
-                      <p className="text-sm text-gray-600">Vendor Booking ID</p>
-                      <p className="font-medium">{testData.vendorBookingId}</p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-sm text-gray-600">Payment Reference</p>
+                    <p className="font-medium">
+                      {testData.paymentReference || "Not Set"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Payment Status</p>
+                    <p
+                      className={`font-medium capitalize ${
+                        testData.paymentStatus === "completed"
+                          ? "text-green-600"
+                          : testData.paymentStatus === "failed"
+                          ? "text-red-600"
+                          : "text-yellow-600"
+                      }`}
+                    >
+                      {testData.paymentStatus || "Pending"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Amount</p>
+                    <p className="font-medium text-lg">
+                      ₹{testData.totalPrice || testData.price || 0}
+                      {testData.isFree && <span className="text-green-600 ml-2">(Free)</span>}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -337,6 +507,18 @@ export function ReportStatus() {
                     <option value="not_submitted">Not Sent</option>
                     <option value="submitted">Sent</option>
                   </select>
+                  
+                  {/* Status explanation */}
+                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                    <p className="font-medium text-blue-800 mb-1">Status Guide:</p>
+                    <p><strong>Not Sent:</strong> Report has not been sent to patient</p>
+                    <p><strong>Sent:</strong> Report has been delivered to patient</p>
+                    {(!testData.vendorStatus || testData.vendorStatus !== "completed") && (
+                      <p className="text-amber-600 mt-2">
+                        ⚠️ Vendor check must be completed before updating report status
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 

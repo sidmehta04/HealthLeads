@@ -6,9 +6,8 @@ import TestSearch from "../TestSearch";
 import TestWorkflowStatus from "../TestWorkflowStatus";
 import { useAuth } from "../../../context/AuthContext";
 
-
 export function VendorCheck() {
-  const { currentUser } = useAuth();  // Add this line
+  const { currentUser } = useAuth(); // Add this line
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,62 +20,93 @@ export function VendorCheck() {
   // Set up real-time listener for test entries
   useEffect(() => {
     const testEntriesRef = ref(database, "testEntries");
-    
-    const unsubscribe = onValue(testEntriesRef, (snapshot) => {
-      try {
-        if (snapshot.exists()) {
-          const entries = snapshot.val();
-          const formattedEntries = Object.entries(entries)
-            .map(([key, entry]) => ({
-              id: key,
-              ...entry,
-            }))
-            .sort((a, b) => 
-              new Date(b.metadata?.createdAt || 0) - 
-              new Date(a.metadata?.createdAt || 0)
-            );
-          
-          setAllTestEntries(formattedEntries);
 
-          // Update current test data if it exists
-          if (entryId) {
-            const updatedEntry = formattedEntries.find(entry => entry.id === entryId);
-            if (updatedEntry) {
-              setTestData(updatedEntry);
-              setVendorStatus(updatedEntry.vendorStatus || "not_completed");
-              setVendorBookingId(updatedEntry.vendorBookingId || "");
+    const unsubscribe = onValue(
+      testEntriesRef,
+      (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            const entries = snapshot.val();
+            const formattedEntries = Object.entries(entries)
+              .map(([key, entry]) => ({
+                id: key,
+                ...entry,
+              }))
+              .sort(
+                (a, b) =>
+                  new Date(b.metadata?.createdAt || 0) -
+                  new Date(a.metadata?.createdAt || 0)
+              );
+
+            setAllTestEntries(formattedEntries);
+
+            // Update current test data if it exists
+            if (entryId) {
+              const updatedEntry = formattedEntries.find(
+                (entry) => entry.id === entryId
+              );
+              if (updatedEntry) {
+                setTestData(updatedEntry);
+                setVendorStatus(updatedEntry.vendorStatus || "not_completed");
+                setVendorBookingId(updatedEntry.vendorBookingId || "");
+              }
             }
+          } else {
+            setAllTestEntries([]);
           }
-        } else {
-          setAllTestEntries([]);
+        } catch (error) {
+          console.error("Error processing test entries:", error);
         }
-      } catch (error) {
-        console.error("Error processing test entries:", error);
+      },
+      (error) => {
+        console.error("Error fetching test entries:", error);
       }
-    }, (error) => {
-      console.error("Error fetching test entries:", error);
-    });
+    );
 
     // Cleanup function
     return () => {
-      off(testEntriesRef, 'value', unsubscribe);
+      off(testEntriesRef, "value", unsubscribe);
     };
   }, [entryId]); // Include entryId in dependencies to update current test data
 
   const handleSearch = async (searchCode) => {
     if (!searchCode.trim()) {
-      setError("Please enter a test code");
+      setError("Please enter a test code or booking ID");
       return;
     }
 
     setLoading(true);
     setError("");
 
-    const matchingEntry = allTestEntries.find(
-      (entry) =>
+    const matchingEntry = allTestEntries.find((entry) => {
+      // Check master booking ID
+      if (
+        entry.masterBookingId &&
+        entry.masterBookingId.toUpperCase() === searchCode.toUpperCase()
+      ) {
+        return true;
+      }
+
+      // Check individual test codes
+      if (
+        entry.testCodes &&
+        entry.testCodes.some(
+          (code) => code.toUpperCase() === searchCode.toUpperCase()
+        )
+      ) {
+        return true;
+      }
+
+      // Legacy single test support
+      if (
         entry.testCode &&
         entry.testCode.toUpperCase() === searchCode.toUpperCase()
-    );
+      ) {
+        return true;
+      }
+
+      return false;
+    });
 
     if (matchingEntry) {
       setTestData(matchingEntry);
@@ -84,7 +114,7 @@ export function VendorCheck() {
       setVendorStatus(matchingEntry.vendorStatus || "not_completed");
       setVendorBookingId(matchingEntry.vendorBookingId || "");
     } else {
-      setError("No entry found with this test code");
+      setError("No entry found with this test code or booking ID");
       setTestData(null);
       setEntryId(null);
     }
@@ -93,11 +123,12 @@ export function VendorCheck() {
   };
 
   const handleSearchResultSelect = (entry) => {
-    setTestData(entry);
-    setEntryId(entry.id);
-    setVendorStatus(entry.vendorStatus || "not_completed");
-    setVendorBookingId(entry.vendorBookingId || "");
-  };
+  setTestData(entry);
+  setEntryId(entry.id);
+  setVendorStatus(entry.vendorStatus || "not_completed");
+  setVendorBookingId(entry.vendorBookingId || "");
+  setError(""); // Clear any existing errors
+};
   const handleTestClick = (test) => {
     setTestData(test);
     setEntryId(test.id);
@@ -116,14 +147,14 @@ export function VendorCheck() {
       setError("Please enter vendor booking ID");
       return;
     }
-  
+
     setLoading(true);
     setError("");
-  
+
     try {
       const entryRef = ref(database, `testEntries/${entryId}`);
       const now = new Date().toISOString();
-      
+
       const updates = {
         vendorStatus,
         ...(vendorStatus === "completed" && { vendorBookingId }),
@@ -134,7 +165,7 @@ export function VendorCheck() {
           vendorStatusUpdatedBy: currentUser.email,
         },
       };
-  
+
       await update(entryRef, updates);
       alert("Vendor status updated successfully!");
     } catch (error) {
@@ -154,27 +185,31 @@ export function VendorCheck() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-white px-8 py-8">
       <div className="max-w-8xl mx-auto">
-      <div className="mb-4">
-          <TestWorkflowStatus 
-            activeContext="vendor-check" 
+        <div className="mb-4">
+          <TestWorkflowStatus
+            activeContext="vendor-check"
             onTestClick={handleTestClick}
           />
         </div>
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
               <h2 className="text-2xl font-bold text-white">Vendor Check</h2>
-
-              <TestSearch
-                testEntries={allTestEntries}
-                onSearch={handleSearch}
-                onSelect={handleSearchResultSelect}
-                loading={loading}
-              />
+              <p className="text-blue-100 text-sm mt-1">
+                Search by test code or master booking ID
+              </p>
             </div>
-          </div>
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          
 
+            <TestSearch
+              testEntries={allTestEntries}
+              onSearch={handleSearch}
+              onSelect={handleSearchResultSelect}
+              loading={loading}
+              placeholder="Enter test code or booking ID"
+            />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {error && (
             <div className="mx-6 mt-6 bg-red-50 border-l-4 border-red-500 p-4">
               <div className="flex items-center">
@@ -241,29 +276,93 @@ export function VendorCheck() {
               )}
 
               {/* Test Details */}
+              {/* Test Details */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
                   <h3 className="text-lg font-semibold">Test Details</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">Test Name</p>
-                    <p className="font-medium">{testData.testName}</p>
+
+                {/* Check if it's multiple tests or single test */}
+                {testData.tests && testData.tests.length > 0 ? (
+                  // Multiple tests display
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Master Booking ID
+                          </p>
+                          <p className="font-medium">
+                            {testData.masterBookingId}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Total Tests</p>
+                          <p className="font-medium">
+                            {testData.testCount || testData.tests.length}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Total Price</p>
+                          <p className="font-medium">₹{testData.totalPrice}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Entry Type</p>
+                          <p className="font-medium">Multiple Tests</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Individual Tests */}
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-gray-800">
+                        Individual Tests:
+                      </h4>
+                      {testData.tests.map((test, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-50 p-4 rounded-lg border"
+                        >
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Test Name</p>
+                              <p className="font-medium">{test.testName}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Test Code</p>
+                              <p className="font-medium">{test.testCode}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Price</p>
+                              <p className="font-medium">₹{test.price}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Test Code</p>
-                    <p className="font-medium">{testData.testCode}</p>
+                ) : (
+                  // Single test display (legacy support)
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600">Test Name</p>
+                      <p className="font-medium">{testData.testName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Test Code</p>
+                      <p className="font-medium">{testData.testCode}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Booking ID</p>
+                      <p className="font-medium">{testData.bookingId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Price</p>
+                      <p className="font-medium">₹{testData.price}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Booking ID</p>
-                    <p className="font-medium">{testData.bookingId}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Price</p>
-                    <p className="font-medium">₹{testData.price}</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Payment Details */}
@@ -276,7 +375,9 @@ export function VendorCheck() {
                   <div>
                     <p className="text-sm text-gray-600">Payment Mode</p>
                     <p className="font-medium capitalize">
-                      {testData.paymentMode || "Not Set"}
+                      {testData.isFree
+                        ? "Free"
+                        : testData.paymentMode || "Not Set"}
                     </p>
                   </div>
                   <div>
@@ -297,6 +398,15 @@ export function VendorCheck() {
                       }`}
                     >
                       {testData.paymentStatus || "Pending"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Amount</p>
+                    <p className="font-medium text-lg">
+                      ₹{testData.totalPrice || testData.price || 0}
+                      {testData.isFree && (
+                        <span className="text-green-600 ml-2">(Free)</span>
+                      )}
                     </p>
                   </div>
                 </div>
