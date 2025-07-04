@@ -109,28 +109,29 @@ export function TestEntryForm() {
     };
   }, []);
 
-  useEffect(() => {
-    if (searchTestCode.trim()) {
-      const filtered = allTestEntries.filter(
-        (entry) =>
-          (entry.testCode &&
-            entry.testCode
-              .toLowerCase()
-              .includes(searchTestCode.toLowerCase())) ||
-          (entry.name &&
-            entry.name.toLowerCase().includes(searchTestCode.toLowerCase())) ||
-          (entry.bookingId &&
-            entry.bookingId
-              .toLowerCase()
-              .includes(searchTestCode.toLowerCase()))
-      );
-      setSearchResults(filtered.slice(0, 5)); // Limit to top 5 results
-      setIsDropdownOpen(true);
-    } else {
-      setSearchResults([]);
-      setIsDropdownOpen(false);
-    }
-  }, [searchTestCode, allTestEntries]);
+useEffect(() => {
+  // Add safety check for searchTestCode
+  if (searchTestCode && searchTestCode.trim()) {
+    const filtered = allTestEntries.filter(
+      (entry) =>
+        (entry.testCode &&
+          entry.testCode
+            .toLowerCase()
+            .includes(searchTestCode.toLowerCase())) ||
+        (entry.name &&
+          entry.name.toLowerCase().includes(searchTestCode.toLowerCase())) ||
+        (entry.bookingId &&
+          entry.bookingId
+            .toLowerCase()
+            .includes(searchTestCode.toLowerCase()))
+    );
+    setSearchResults(filtered.slice(0, 5)); // Limit to top 5 results
+    setIsDropdownOpen(true);
+  } else {
+    setSearchResults([]);
+    setIsDropdownOpen(false);
+  }
+}, [searchTestCode, allTestEntries]);
   const handleTestClick = (test) => {
     // Update to handle tests array instead of single test
     setFormData({
