@@ -5,11 +5,12 @@ import { ref, onValue, off } from "firebase/database";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, FileText, CheckCircle2, Clock, ChevronDown, ChevronUp, Package, Loader2, User, Phone, CreditCard } from "lucide-react";
-import { StatusBadge, UserActivityInfo, formatDateTime } from "./SubComponents/TestActivityStatus";
+import { StatusBadge } from "./SubComponents/TestActivityStatus";
 import { Virtuoso, TableVirtuoso } from "react-virtuoso";
 import debounce from "lodash.debounce";
-
+ 
 // Mobile Card Component
+// eslint-disable-next-line react/display-name
 const TestMobileCard = React.memo(({ test, onTestClick, getTestSummary, getDisplayId }) => {
   const testSummary = getTestSummary(test);
   return (

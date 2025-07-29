@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import {
   PieChart,
   Pie,
@@ -25,6 +25,8 @@ import { getFirestore } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import { getDatabase, ref, get } from "firebase/database";
 import CampsDashboard from "./CampsDashboard";
+import SubscriptionUsageTable from "./SubscriptionUsageTable";
+import SubscriptionTable from "./SubscriptionUsageTable";
 let mswasthApp;
 let mswasthDb;
 try {
@@ -656,23 +658,30 @@ export const SubscriptionDashboard = () => {
       <div className="flex space-x-4 border-b border-gray-200">
         <button
           onClick={() => setSubTab("sales")}
-          className={`px-4 py-2 text-sm font-medium ${
-            subTab === "sales"
+          className={`px-4 py-2 text-sm font-medium ${subTab === "sales"
               ? "border-b-2 border-indigo-500 text-indigo-600"
               : "text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Sales
         </button>
         <button
           onClick={() => setSubTab("camps")}
-          className={`px-4 py-2 text-sm font-medium ${
-            subTab === "camps"
+          className={`px-4 py-2 text-sm font-medium ${subTab === "camps"
               ? "border-b-2 border-indigo-500 text-indigo-600"
               : "text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Camps
+        </button>
+        <button
+          onClick={() => setSubTab("usage")}
+          className={`px-4 py-2 text-sm font-medium ${subTab === "usage"
+              ? "border-b-2 border-indigo-500 text-indigo-600"
+              : "text-gray-500 hover:text-gray-700"
+            }`}
+        >
+          Usage
         </button>
       </div>
 
@@ -686,41 +695,37 @@ export const SubscriptionDashboard = () => {
             <div className="flex flex-wrap space-x-2">
               <button
                 onClick={() => setDateFilter("daily")}
-                className={`px-3 py-1 text-sm font-medium rounded-md ${
-                  dateFilter === "daily"
+                className={`px-3 py-1 text-sm font-medium rounded-md ${dateFilter === "daily"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                  }`}
               >
                 Daily
               </button>
               <button
                 onClick={() => setDateFilter("mtd")}
-                className={`px-3 py-1 text-sm font-medium rounded-md ${
-                  dateFilter === "mtd"
+                className={`px-3 py-1 text-sm font-medium rounded-md ${dateFilter === "mtd"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                  }`}
               >
                 MTD
               </button>
               <button
                 onClick={() => setDateFilter("ytd")}
-                className={`px-3 py-1 text-sm font-medium rounded-md ${
-                  dateFilter === "ytd"
+                className={`px-3 py-1 text-sm font-medium rounded-md ${dateFilter === "ytd"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                  }`}
               >
                 YTD
               </button>
               <button
                 onClick={() => setDateFilter("itd")}
-                className={`px-3 py-1 text-sm font-medium rounded-md ${
-                  dateFilter === "itd"
+                className={`px-3 py-1 text-sm font-medium rounded-md ${dateFilter === "itd"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                  }`}
               >
                 ITD
               </button>
@@ -1132,11 +1137,10 @@ export const SubscriptionDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                transaction.paymentMethod === "cash"
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.paymentMethod === "cash"
                                   ? "bg-green-100 text-green-800"
                                   : "bg-blue-100 text-blue-800"
-                              }`}
+                                }`}
                             >
                               {transaction.paymentMethod === "cash"
                                 ? "Cash"
@@ -1148,11 +1152,10 @@ export const SubscriptionDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                utilizedPolicyNumbers.has(transaction.policyNumber)
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${utilizedPolicyNumbers.has(transaction.policyNumber)
                                   ? "bg-green-100 text-green-800"
                                   : "bg-red-100 text-red-800"
-                              }`}
+                                }`}
                             >
                               {utilizedPolicyNumbers.has(transaction.policyNumber)
                                 ? "Yes"
@@ -1173,11 +1176,10 @@ export const SubscriptionDashboard = () => {
                   <button
                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
-                      currentPage === 1
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${currentPage === 1
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     Previous
                   </button>
@@ -1194,12 +1196,11 @@ export const SubscriptionDashboard = () => {
                       currentPage ===
                       Math.ceil(recentTransactions.length / transactionsPerPage)
                     }
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${
-                      currentPage ===
-                      Math.ceil(recentTransactions.length / transactionsPerPage)
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${currentPage ===
+                        Math.ceil(recentTransactions.length / transactionsPerPage)
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     Next
                   </button>
@@ -1238,11 +1239,10 @@ export const SubscriptionDashboard = () => {
                           setCurrentPage((prev) => Math.max(prev - 1, 1))
                         }
                         disabled={currentPage === 1}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
-                          currentPage === 1
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${currentPage === 1
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         <span className="sr-only">Previous</span>
                         &lsaquo;
@@ -1264,11 +1264,10 @@ export const SubscriptionDashboard = () => {
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border ${
-                              currentPage === page
+                            className={`relative inline-flex items-center px-4 py-2 border ${currentPage === page
                                 ? "z-10 bg-gray-900 border-gray-900 text-white"
                                 : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                            } text-sm font-medium`}
+                              } text-sm font-medium`}
                           >
                             {page}
                           </button>
@@ -1290,12 +1289,11 @@ export const SubscriptionDashboard = () => {
                           currentPage ===
                           Math.ceil(recentTransactions.length / transactionsPerPage)
                         }
-                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${
-                          currentPage ===
-                          Math.ceil(recentTransactions.length / transactionsPerPage)
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${currentPage ===
+                            Math.ceil(recentTransactions.length / transactionsPerPage)
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         <span className="sr-only">Next</span>
                         &rsaquo;
@@ -1311,7 +1309,10 @@ export const SubscriptionDashboard = () => {
       )}
 
       {subTab === "camps" && (
-        <CampsDashboard/>
+        <CampsDashboard />
+      )}
+      {subTab === "usage" && (
+        <SubscriptionTable/>
       )}
     </div>
   );
