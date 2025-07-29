@@ -301,7 +301,7 @@ export const SubscriptionDashboard = () => {
           const saleData = doc.data();
 
           // Get the sale date from policyCreatedAt (preferred) or timestamp
-          const saleTimestamp = saleData.policyCreatedAt || saleData.timestamp;
+          const saleTimestamp = saleData.policyCreatedAt;
           const saleDate = saleTimestamp?.toDate
             ? saleTimestamp.toDate()
             : new Date(saleTimestamp);
@@ -1128,7 +1128,7 @@ export const SubscriptionDashboard = () => {
                             {clinicInfo.state || "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(transaction.timestamp)}
+                            {formatDate(transaction.policyCreatedAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span
