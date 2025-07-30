@@ -554,10 +554,10 @@ export default function OptimizedSubscriptionExcelDownloader() {
       <div className="bg-white rounded-xl shadow-xl p-8 max-w-lg w-full border border-gray-100">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Subscription Usage Analysis
+           📊 Download Excel Report
           </h1>
           <p className="text-gray-600">
-            Ultra-fast subscription analysis report (Target: &lt;1 min)
+            Ultra-fast subscription analysis report
           </p>
         </div>
         
