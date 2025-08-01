@@ -66,42 +66,8 @@ export default function OptimizedSubscriptionExcelDownloader() {
   
   // OPTIMIZATION 2: Use refs instead of state for performance-critical data
   const usageStatsRef = useRef(new Map());
-  const clinicDataRef = useRef(new Map());
   const processingStartTime = useRef(0);
   const abortController = useRef(null);
-
-  // OPTIMIZATION 3: Optimized clinic data fetcher with minimal fields
-  const fetchClinicData = useCallback(async () => {
-    try {
-      setProcessingStatus('Fetching clinic data...');
-      const clinicsRef = collection(db, "clinics");
-      const clinicsSnap = await getDocs(clinicsRef);
-      
-      const clinics = new Map();
-      clinicsSnap.forEach((doc) => {
-        const clinic = doc.data();
-        if (clinic.clinicCode) {
-          // Store only essential fields to reduce memory usage
-          clinics.set(clinic.clinicCode, {
-            clinicName: clinic.clinicName || 'Unknown',
-            state: clinic.state || 'Unknown',
-            district: clinic.district || 'Unknown',
-            address: clinic.address || 'Unknown',
-            contactPerson: clinic.contactPerson || 'Unknown',
-            phoneNumber: clinic.phoneNumber || 'Unknown',
-            email: clinic.email || 'Unknown',
-          });
-        }
-      });
-      
-      clinicDataRef.current = clinics;
-      return clinics;
-    } catch (error) {
-      console.error("Error fetching clinic data:", error);
-      setProcessingStatus('Error fetching clinic data');
-      throw error;
-    }
-  }, []);
 
   // OPTIMIZATION 4: Ultra-fast batch processing with direct Map operations
   const processBatchOptimized = useCallback((docs) => {
@@ -184,52 +150,17 @@ export default function OptimizedSubscriptionExcelDownloader() {
     }
   }, []);
 
-  // OPTIMIZATION 7: Web Worker for CSV generation (inline for React component)
-  const generateCSVInWorker = useCallback((usageStatsMap, clinicDataMap, totalProcessed) => {
+  // OPTIMIZATION 7: Simplified CSV generation (removed unwanted data)
+  const generateCSVInWorker = useCallback((usageStatsMap, totalProcessed) => {
     return new Promise((resolve, reject) => {
       try {
         setProcessingStatus('Generating CSV file...');
         
-        // Create worker-like processing in main thread but optimized
         const csvRows = [];
         
-        // Build header
+        // Simple header - only the columns you want
         csvRows.push([
-          '', 'SUBSCRIPTION USAGE ANALYSIS REPORT', '', '', '', '', '', '', '', '', '', '', '', ''
-        ]);
-        csvRows.push([
-          'Generated on:', new Date().toLocaleString(), '', '', '', '', '', '', '', '', '', '', '', ''
-        ]);
-        csvRows.push([
-          'Total Records Processed:', totalProcessed.toLocaleString(), '', '', '', '', '', '', '', '', '', '', '', ''
-        ]);
-        csvRows.push([
-          'Processing Time:', `${Math.round((Date.now() - processingStartTime.current) / 1000)}s`, '', '', '', '', '', '', '', '', '', '', '', ''
-        ]);
-        csvRows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-        
-        // Calculate overall stats efficiently
-        let totalSubs = 0, utilizedSubs = 0, remainingSubs = 0;
-        for (const stat of usageStatsMap.values()) {
-          totalSubs += stat.total;
-          utilizedSubs += stat.utilized;
-          remainingSubs += stat.remaining;
-        }
-        
-        const utilizationRate = totalSubs > 0 ? ((utilizedSubs / totalSubs) * 100).toFixed(2) : '0.00';
-        
-        csvRows.push(['OVERALL STATISTICS', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-        csvRows.push(['Total Subscriptions', totalSubs, '', '', '', '', '', '', '', '', '', '', '', '']);
-        csvRows.push(['Utilized Subscriptions', utilizedSubs, '', '', '', '', '', '', '', '', '', '', '', '']);
-        csvRows.push(['Remaining Subscriptions', remainingSubs, '', '', '', '', '', '', '', '', '', '', '', '']);
-        csvRows.push(['Overall Utilization Rate (%)', utilizationRate, '', '', '', '', '', '', '', '', '', '', '', '']);
-        csvRows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-        
-        // Main data header
-        csvRows.push([
-          'Clinic Code', 'Clinic Name', 'State', 'District', 'Address',
-          'Contact Person', 'Phone Number', 'Email', 'Product ID', 'Product Name',
-          'Total Subscriptions', 'Utilized', 'Remaining', 'Utilization Rate (%)'
+          'Clinic Code', 'Product Name', 'Total Subscriptions', 'Utilized', 'Remaining', 'Utilization Rate (%)'
         ]);
         
         // OPTIMIZATION 8: Group and sort data efficiently
@@ -239,14 +170,10 @@ export default function OptimizedSubscriptionExcelDownloader() {
           const clinicCode = stat.clinicCode;
           
           if (!clinicGroups.has(clinicCode)) {
-            const clinicInfo = clinicDataMap.get(clinicCode) || {
-              clinicName: 'Unknown', state: 'Unknown', district: 'Unknown',
-              address: 'Unknown', contactPerson: 'Unknown', phoneNumber: 'Unknown', email: 'Unknown'
-            };
-            
             clinicGroups.set(clinicCode, {
-              clinicCode, ...clinicInfo,
-              products: [], totals: { total: 0, utilized: 0, remaining: 0 }
+              clinicCode,
+              products: [], 
+              totals: { total: 0, utilized: 0, remaining: 0 }
             });
           }
           
@@ -267,19 +194,11 @@ export default function OptimizedSubscriptionExcelDownloader() {
             a.productId.localeCompare(b.productId, undefined, { numeric: true })
           );
           
-          products.forEach((product, i) => {
-            const rate = product.total > 0 ? ((product.utilized / product.total) * 100).toFixed(2) : '0.00';
+          products.forEach((product) => {
+            const rate = product.total > 0 ? ((product.utilized / product.total) * 100).toFixed(0) : '0';
             
             csvRows.push([
-              i === 0 ? clinic.clinicCode : '',
-              i === 0 ? clinic.clinicName : '',
-              i === 0 ? clinic.state : '',
-              i === 0 ? clinic.district : '',
-              i === 0 ? clinic.address : '',
-              i === 0 ? clinic.contactPerson : '',
-              i === 0 ? clinic.phoneNumber : '',
-              i === 0 ? clinic.email : '',
-              product.productId,
+              clinic.clinicCode,
               product.productName,
               product.total,
               product.utilized,
@@ -288,90 +207,24 @@ export default function OptimizedSubscriptionExcelDownloader() {
             ]);
           });
           
-          // Clinic totals
+          // COMMENT: Remove the lines below (lines 165-171) if you don't want clinic total rows in future
           const clinicRate = clinic.totals.total > 0 
             ? ((clinic.totals.utilized / clinic.totals.total) * 100).toFixed(2) : '0.00';
           csvRows.push([
-            '', '', '', '', '', '', '', '', 'CLINIC TOTAL', 'All Products',
-            clinic.totals.total, clinic.totals.utilized, clinic.totals.remaining, clinicRate
+            clinic.clinicCode,
+            'All Products',
+            clinic.totals.total, 
+            clinic.totals.utilized, 
+            clinic.totals.remaining, 
+            clinicRate
           ]);
-          csvRows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
         }
-        
-        // Add state and product summaries efficiently
-        addOptimizedStateSummary(csvRows, sortedClinics);
-        addOptimizedProductSummary(csvRows, usageStatsMap);
         
         resolve(csvRows);
       } catch (error) {
         reject(error);
       }
     });
-  }, []);
-
-  // OPTIMIZATION 9: Optimized summary functions
-  const addOptimizedStateSummary = useCallback((csvRows, clinics) => {
-    csvRows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-    csvRows.push(['STATE-WISE SUMMARY', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-    csvRows.push(['State', 'Number of Clinics', 'Total Subscriptions', 'Utilized', 'Remaining', 'Utilization Rate (%)', '', '', '', '', '', '', '', '']);
-    
-    const stateStats = new Map();
-    for (const clinic of clinics) {
-      const state = clinic.state;
-      const existing = stateStats.get(state);
-      if (existing) {
-        existing.clinicCount++;
-        existing.total += clinic.totals.total;
-        existing.utilized += clinic.totals.utilized;
-        existing.remaining += clinic.totals.remaining;
-      } else {
-        stateStats.set(state, {
-          clinicCount: 1,
-          total: clinic.totals.total,
-          utilized: clinic.totals.utilized,
-          remaining: clinic.totals.remaining
-        });
-      }
-    }
-    
-    Array.from(stateStats.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([state, stats]) => {
-        const rate = stats.total > 0 ? ((stats.utilized / stats.total) * 100).toFixed(2) : '0.00';
-        csvRows.push([state, stats.clinicCount, stats.total, stats.utilized, stats.remaining, rate, '', '', '', '', '', '', '', '']);
-      });
-  }, []);
-
-  const addOptimizedProductSummary = useCallback((csvRows, usageStatsMap) => {
-    csvRows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-    csvRows.push(['PRODUCT-WISE SUMMARY', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-    csvRows.push(['Product ID', 'Product Name', 'Total Subscriptions', 'Utilized', 'Remaining', 'Utilization Rate (%)', '', '', '', '', '', '', '', '']);
-    
-    const productStats = new Map();
-    for (const stat of usageStatsMap.values()) {
-      const key = `${stat.productId}__${stat.productName}`;
-      const existing = productStats.get(key);
-      if (existing) {
-        existing.total += stat.total;
-        existing.utilized += stat.utilized;
-        existing.remaining += stat.remaining;
-      } else {
-        productStats.set(key, {
-          productId: stat.productId,
-          productName: stat.productName,
-          total: stat.total,
-          utilized: stat.utilized,
-          remaining: stat.remaining
-        });
-      }
-    }
-    
-    Array.from(productStats.values())
-      .sort((a, b) => a.productId.localeCompare(b.productId, undefined, { numeric: true }))
-      .forEach(product => {
-        const rate = product.total > 0 ? ((product.utilized / product.total) * 100).toFixed(2) : '0.00';
-        csvRows.push([product.productId, product.productName, product.total, product.utilized, product.remaining, rate, '', '', '', '', '', '', '', '']);
-      });
   }, []);
 
   // OPTIMIZATION 10: Ultra-fast CSV file generation and download
@@ -430,11 +283,7 @@ export default function OptimizedSubscriptionExcelDownloader() {
     processingStartTime.current = Date.now();
     
     try {
-      // Parallel initialization
-      const [estimatedTotal, clinicDataMap] = await Promise.all([
-        getEstimatedTotal(),
-        fetchClinicData()
-      ]);
+      const estimatedTotal = await getEstimatedTotal();
 
       if (abortController.current.signal.aborted) return;
 
@@ -503,7 +352,7 @@ export default function OptimizedSubscriptionExcelDownloader() {
 
       // Generate CSV with worker-like optimization
       setProcessingStatus('Generating optimized CSV...');
-      const csvRows = await generateCSVInWorker(usageStatsRef.current, clinicDataRef.current, processedCount);
+      const csvRows = await generateCSVInWorker(usageStatsRef.current, processedCount);
       
       // Download file
       await downloadOptimizedCSV(csvRows);
@@ -524,7 +373,6 @@ export default function OptimizedSubscriptionExcelDownloader() {
     processBatchOptimized, 
     BATCH_SIZE, 
     PROCESSING_DELAY,
-    fetchClinicData, 
     updateProgress, 
     getEstimatedTotal,
     generateCSVInWorker,
