@@ -207,17 +207,6 @@ export default function OptimizedSubscriptionExcelDownloader() {
             ]);
           });
           
-          // COMMENT: Remove the lines below (lines 165-171) if you don't want clinic total rows in future
-          const clinicRate = clinic.totals.total > 0 
-            ? ((clinic.totals.utilized / clinic.totals.total) * 100).toFixed(2) : '0.00';
-          csvRows.push([
-            clinic.clinicCode,
-            'All Products',
-            clinic.totals.total, 
-            clinic.totals.utilized, 
-            clinic.totals.remaining, 
-            clinicRate
-          ]);
         }
         
         resolve(csvRows);
